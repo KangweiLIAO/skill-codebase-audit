@@ -4,18 +4,15 @@ Generate a styled HTML audit report from a findings.json file.
 
 Usage:
     python3 generate_audit_report.py --findings findings.json --output audit-report.html
+    python3 generate_audit_report.py --validate-only --findings findings.json
 """
 
 import argparse
 import json
+import re
 import sys
 from html import escape
-
-SEVERITY_BADGE = {
-    "confirmed": '<span class="badge confirmed">Confirmed</span>',
-    "likely": '<span class="badge likely">Likely</span>',
-    "uncertain": '<span class="badge uncertain">Uncertain</span>',
-}
+from pathlib import Path
 
 CATEGORY_TITLES = {
     "tech_stack_consistency": "Tech Stack Consistency",
@@ -28,137 +25,9 @@ CATEGORY_TITLES = {
     "code_duplication": "Code Duplication",
 }
 
-HTML_TEMPLATE = """\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Codebase Audit Report</title>
-    <style>
-        :root {{
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #38bdf8;
-            --border: #334155;
-            --confirmed: #ef4444;
-            --likely: #f59e0b;
-            --uncertain: #3b82f6;
-            --green: #22c55e;
-        }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            line-height: 1.6;
-            margin: 0;
-            padding: 2rem;
-        }}
-        .container {{ max-width: 1000px; margin: 0 auto; }}
-        header {{ border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem; }}
-        h1 {{ margin: 0 0 0.5rem 0; font-size: 2rem; color: var(--accent); }}
-        h2 {{ font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-top: 2.5rem; }}
-        .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }}
-        .card {{ background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }}
-        .card h3 {{ margin-top: 0; color: var(--accent); }}
-        ul {{ padding-left: 1.5rem; margin: 0.5rem 0; }}
-        li {{ margin-bottom: 0.5rem; }}
-        .badge {{
-            display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px;
-            font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
-            letter-spacing: 0.05em; margin-left: 0.5rem;
-        }}
-        .badge.confirmed {{ background: rgba(239, 68, 68, 0.2); color: var(--confirmed); }}
-        .badge.likely {{ background: rgba(245, 158, 11, 0.2); color: var(--likely); }}
-        .badge.uncertain {{ background: rgba(59, 130, 246, 0.2); color: var(--uncertain); }}
-        code {{
-            background: #0b1120; padding: 0.2rem 0.4rem; border-radius: 4px;
-            font-family: ui-monospace, monospace; font-size: 0.9em;
-        }}
-        .limitations {{
-            background: #451a03; border: 1px solid #78350f;
-            border-radius: 8px; padding: 1.5rem; margin-top: 3rem;
-        }}
-        .limitations h3 {{ color: #fbbf24; margin-top: 0; }}
-        .coverage-note {{
-            background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3);
-            border-radius: 8px; padding: 1rem 1.5rem; margin: 1rem 0;
-            color: var(--green);
-        }}
-        .file-block {{ margin-bottom: 1.5rem; }}
-        .file-block h4 {{ color: var(--accent); margin-bottom: 0.25rem; }}
-        .file-block p {{ margin: 0.25rem 0; }}
-        .summary-stat {{
-            display: inline-block; text-align: center; padding: 0.75rem 1.5rem;
-            background: var(--card-bg); border: 1px solid var(--border);
-            border-radius: 8px; margin-right: 0.75rem; margin-bottom: 0.75rem;
-        }}
-        .summary-stat .num {{ font-size: 1.75rem; font-weight: bold; color: var(--accent); }}
-        .summary-stat .label {{ font-size: 0.8rem; color: var(--text-muted); }}
-        .empty-category {{ color: var(--text-muted); font-style: italic; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Codebase Insight Report</h1>
-            <p style="color: var(--text-muted)">Generated: {generated_date} | Project: {project_name}</p>
-            <p><strong>Context:</strong> {context}</p>
-        </header>
-
-        {summary_stats}
-
-        {coverage_note}
-
-        <h2>High-Level Overview</h2>
-        <div class="grid">
-            <div class="card">
-                <h3>Tech Stack Detected</h3>
-                <ul>{tech_stack_items}</ul>
-            </div>
-            <div class="card">
-                <h3>Current Architecture</h3>
-                <p>{current_architecture}</p>
-            </div>
-        </div>
-
-        <h2>Audit Findings</h2>
-        {category_cards}
-
-        <h2>Clean Code Pass (Top Problematic Files)</h2>
-        {clean_code_section}
-
-        <h2>Target Architecture Recommendation</h2>
-        <div class="card">
-            <p><strong>Recommendation:</strong> {arch_recommendation}</p>
-            <p><strong>Rationale:</strong> {arch_rationale}</p>
-            <p><strong>Migration Path:</strong> {arch_migration}</p>
-        </div>
-
-        <h2>Manual Verification Required</h2>
-        <div class="card">
-            <ul>
-                <li>Run platform-specific vulnerability scanners (e.g., OWASP, <code>npm audit</code>, <code>pip-audit</code>)</li>
-                <li>Run platform linters (e.g., SwiftLint, Ktlint, ESLint, Ruff)</li>
-                <li>Check actual test coverage percentages with CI tools</li>
-            </ul>
-        </div>
-
-        <div class="limitations">
-            <h3>&#9888;&#65039; What This Audit Cannot Tell You</h3>
-            <ul>
-                <li>Runtime behavior, memory leaks, or performance bottlenecks under load.</li>
-                <li>Whether flagged inconsistencies are deliberate (legacy constraints, intentional divergence).</li>
-                <li>Actual test coverage execution percentages.</li>
-                <li>Whether static dependency vulnerabilities are actually exploitable in this app's context.</li>
-            </ul>
-        </div>
-    </div>
-</body>
-</html>
-"""
+VALID_SEVERITIES = {"confirmed", "likely", "uncertain"}
+REQUIRED_TOP_LEVEL_KEYS = {"project_name", "generated_date", "categories"}
+VALID_CATEGORY_KEYS = set(CATEGORY_TITLES.keys())
 
 
 def load_findings(path: str) -> dict:
@@ -166,52 +35,129 @@ def load_findings(path: str) -> dict:
         return json.load(f)
 
 
+def load_template() -> str:
+    """Load the HTML template from the assets directory."""
+    script_dir = Path(__file__).resolve().parent
+    template_path = script_dir.parent / "assets" / "template.html"
+    if not template_path.exists():
+        print(f"Error: Template not found at {template_path}", file=sys.stderr)
+        sys.exit(1)
+    with open(template_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def format_text(text: str) -> str:
+    """Escape HTML and convert markdown backticks to <code> tags."""
+    escaped = escape(text)
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+
+
+def to_list(value) -> list:
+    """Normalize a value to a list of strings. Accepts a list or a numbered string."""
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    text = str(value)
+    # Try "Step N" format
+    if "Step 1" in text:
+        return [s.strip() for s in re.split(r"(?=\bStep \d+)", text) if s.strip()]
+    # Try "N." or "N)" format
+    parts = re.split(r"(?=\b\d+[\.\)])", text)
+    result = [s.strip() for s in parts if s.strip()]
+    if len(result) > 1:
+        return result
+    return [text]
+
+
 def render_tech_stack(items: list) -> str:
     if not items:
-        return "<li><em>No tech stack detected</em></li>"
-    return "\n".join(f"                    <li>{escape(item)}</li>" for item in items)
+        return "<em>No tech stack detected</em>"
+    return "\n".join(
+        f'<span class="tech-tag">{escape(item)}</span>' for item in items
+    )
+
+
+def render_coverage_grid(coverage: dict) -> str:
+    """Render the two-column coverage grid with audited/skipped path tags."""
+    if not coverage:
+        return ""
+
+    audited = coverage.get("audited", [])
+    skipped = coverage.get("skipped", [])
+
+    if not audited and not skipped:
+        return ""
+
+    audited_tags = "".join(
+        f'<span class="path-tag">{escape(p)}</span>' for p in audited
+    )
+    skipped_tags = "".join(
+        f'<span class="path-tag">{escape(p)}</span>' for p in skipped
+    )
+
+    return (
+        '<div class="coverage-grid">\n'
+        '    <div class="coverage-box">\n'
+        '        <div class="coverage-title audited">'
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
+        " Paths Audited</div>\n"
+        f'        <div class="path-list">{audited_tags}</div>\n'
+        "    </div>\n"
+        '    <div class="coverage-box">\n'
+        '        <div class="coverage-title skipped">'
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        '<circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>'
+        " Paths Skipped</div>\n"
+        f'        <div class="path-list">{skipped_tags}</div>\n'
+        "    </div>\n"
+        "</div>"
+    )
 
 
 def render_category_cards(categories: dict) -> str:
     cards = []
+    first = True
     for key, findings in categories.items():
         title = CATEGORY_TITLES.get(key, key.replace("_", " ").title())
+        is_open = "open" if first else ""
+        first = False
+
         if not findings:
-            cards.append(
-                f'<div class="card">\n'
-                f"    <h3>{title}</h3>\n"
-                f'    <p class="empty-category">No issues found.</p>\n'
-                f"</div>"
-            )
             continue
-        items = []
+
+        items_html = []
         for f in findings:
-            desc = escape(f["description"])
+            desc = format_text(f.get("description", ""))
             sev = f.get("severity", "uncertain")
-            badge = SEVERITY_BADGE.get(sev, SEVERITY_BADGE["uncertain"])
-            items.append(f"        <li>{desc} {badge}</li>")
+            sev_score = f.get("severity_score")
+
+            score_badge = ""
+            if sev_score is not None:
+                score_badge = (
+                    f'<span class="severity-score">Severity: {sev_score}/10</span>'
+                )
+
+            items_html.append(
+                f"        <li>\n"
+                f'            <div class="finding-header">'
+                f'<span class="badge {sev}">{sev.title()}</span>'
+                f"{score_badge}</div>\n"
+                f'            <span style="color: var(--text-body);">{desc}</span>\n'
+                f"        </li>"
+            )
+
         cards.append(
-            f'<div class="card">\n'
-            f"    <h3>{title}</h3>\n"
-            f"    <ul>\n" + "\n".join(items) + "\n    </ul>\n"
-            f"</div>"
+            f"<details {is_open}>\n"
+            f'    <summary><span class="category-title">{title}</span>'
+            f' <span class="item-count">{len(findings)} items</span></summary>\n'
+            f'    <div class="details-content"><ul class="finding-list">\n'
+            + "\n".join(items_html)
+            + "\n    </ul></div>\n"
+            f"</details>"
         )
     return "\n".join(cards)
-
-
-def render_clean_code(files: list) -> str:
-    if not files:
-        return '<div class="card"><p class="empty-category">No specific files flagged.</p></div>'
-    blocks = []
-    for entry in files:
-        blocks.append(
-            f'<div class="file-block">\n'
-            f'    <h4><code>{escape(entry["file"])}</code></h4>\n'
-            f'    <p><strong>Issues:</strong> {escape(entry["issues"])}</p>\n'
-            f'    <p><strong>Proposed changes:</strong> {escape(entry["proposed_changes"])}</p>\n'
-            f"</div>"
-        )
-    return '<div class="card">\n' + "\n".join(blocks) + "\n</div>"
 
 
 def count_by_severity(categories: dict) -> dict:
@@ -223,52 +169,189 @@ def count_by_severity(categories: dict) -> dict:
     return counts
 
 
+def compute_overall_score(categories: dict, explicit_score=None) -> int:
+    """
+    If an explicit score is provided, use it.
+    Otherwise: 100 - (confirmed * 5) - (likely * 2) - (uncertain * 1), clamped [0, 100].
+    """
+    if explicit_score is not None:
+        return max(0, min(100, int(explicit_score)))
+    counts = count_by_severity(categories)
+    score = (
+        100
+        - (counts["confirmed"] * 5)
+        - (counts["likely"] * 2)
+        - (counts["uncertain"] * 1)
+    )
+    return max(0, min(100, score))
+
+
 def render_summary_stats(categories: dict) -> str:
     counts = count_by_severity(categories)
     total = sum(counts.values())
-    cats_audited = len(categories)
     return (
-        f'<div style="margin: 1.5rem 0;">\n'
-        f'    <div class="summary-stat"><div class="num">{total}</div><div class="label">Total Findings</div></div>\n'
-        f'    <div class="summary-stat"><div class="num">{counts["confirmed"]}</div><div class="label">Confirmed</div></div>\n'
-        f'    <div class="summary-stat"><div class="num">{counts["likely"]}</div><div class="label">Likely</div></div>\n'
-        f'    <div class="summary-stat"><div class="num">{counts["uncertain"]}</div><div class="label">Uncertain</div></div>\n'
-        f'    <div class="summary-stat"><div class="num">{cats_audited}</div><div class="label">Categories Audited</div></div>\n'
-        f"</div>"
+        f'<div class="stat-box total"><span class="stat-num">{total}</span>'
+        f'<span class="stat-label">Total Findings</span></div>\n'
+        f'<div class="stat-box confirmed"><span class="stat-num">{counts["confirmed"]}</span>'
+        f'<span class="stat-label">Confirmed Issues</span></div>\n'
+        f'<div class="stat-box likely"><span class="stat-num">{counts["likely"]}</span>'
+        f'<span class="stat-label">Likely Risks</span></div>\n'
+        f'<div class="stat-box uncertain"><span class="stat-num">{counts["uncertain"]}</span>'
+        f'<span class="stat-label">Uncertain / Review</span></div>\n'
     )
 
 
-def render_coverage_note(note: str) -> str:
-    if not note:
-        return ""
-    return f'<div class="coverage-note"><strong>Audit Coverage:</strong> {escape(note)}</div>'
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+
+def validate_findings(data: dict) -> list[str]:
+    errors = []
+
+    for key in REQUIRED_TOP_LEVEL_KEYS:
+        if key not in data:
+            errors.append(f"Missing required top-level key: '{key}'")
+
+    categories = data.get("categories", {})
+    if not isinstance(categories, dict):
+        errors.append("'categories' must be a JSON object (dict)")
+    else:
+        for cat_key, findings in categories.items():
+            if cat_key not in VALID_CATEGORY_KEYS:
+                errors.append(
+                    f"Unknown category key: '{cat_key}'. "
+                    f"Valid: {', '.join(sorted(VALID_CATEGORY_KEYS))}"
+                )
+            if not isinstance(findings, list):
+                errors.append(f"Category '{cat_key}' must be a list")
+                continue
+            for i, finding in enumerate(findings):
+                if not isinstance(finding, dict):
+                    errors.append(f"categories.{cat_key}[{i}]: must be an object")
+                    continue
+                if "description" not in finding:
+                    errors.append(f"categories.{cat_key}[{i}]: missing 'description'")
+                sev = finding.get("severity")
+                if sev and sev not in VALID_SEVERITIES:
+                    errors.append(
+                        f"categories.{cat_key}[{i}]: invalid severity '{sev}'"
+                    )
+                sev_score = finding.get("severity_score")
+                if sev_score is not None:
+                    try:
+                        val = int(sev_score)
+                        if val < 1 or val > 10:
+                            errors.append(
+                                f"categories.{cat_key}[{i}]: severity_score "
+                                f"must be 1-10, got {val}"
+                            )
+                    except (ValueError, TypeError):
+                        errors.append(
+                            f"categories.{cat_key}[{i}]: severity_score must be a number"
+                        )
+
+    coverage = data.get("coverage")
+    if coverage is not None:
+        if not isinstance(coverage, dict):
+            errors.append("'coverage' must be an object with 'audited'/'skipped' arrays")
+        else:
+            for field in ("audited", "skipped"):
+                val = coverage.get(field)
+                if val is not None and not isinstance(val, list):
+                    errors.append(f"coverage.{field} must be an array")
+
+    target = data.get("target_architecture")
+    if target is not None:
+        if not isinstance(target, dict):
+            errors.append("'target_architecture' must be an object")
+        else:
+            for field in ("recommendation", "rationale", "migration_path"):
+                if field not in target:
+                    errors.append(f"target_architecture: missing '{field}'")
+
+    score = data.get("overall_score")
+    if score is not None:
+        try:
+            v = int(score)
+            if v < 0 or v > 100:
+                errors.append(f"'overall_score' must be 0-100, got {v}")
+        except (ValueError, TypeError):
+            errors.append(f"'overall_score' must be a number, got '{score}'")
+
+    return errors
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate HTML audit report from findings JSON.")
+    parser = argparse.ArgumentParser(
+        description="Generate HTML audit report from findings JSON."
+    )
     parser.add_argument("--findings", required=True, help="Path to findings.json")
-    parser.add_argument("--output", required=True, help="Output HTML file path")
+    parser.add_argument("--output", help="Output HTML file path")
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate findings.json without generating a report",
+    )
     args = parser.parse_args()
 
-    data = load_findings(args.findings)
+    try:
+        data = load_findings(args.findings)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in {args.findings}: {e}", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError:
+        print(f"Error: File not found: {args.findings}", file=sys.stderr)
+        sys.exit(1)
+
+    errors = validate_findings(data)
+    if errors:
+        print(f"Validation failed with {len(errors)} error(s):", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        sys.exit(1)
+
+    print("Validation passed.")
+
+    if args.validate_only:
+        sys.exit(0)
+
+    if not args.output:
+        print(
+            "Error: --output is required when not using --validate-only",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    template = load_template()
 
     categories = data.get("categories", {})
     target = data.get("target_architecture", {})
-    clean_code = data.get("clean_code_files", [])
 
-    html = HTML_TEMPLATE.format(
+    overall_score = compute_overall_score(categories, data.get("overall_score"))
+
+    migration_steps = to_list(target.get("migration_path", []))
+    migration_html = "".join(
+        f"<li>{format_text(step)}</li>" for step in migration_steps
+    )
+
+    html = template.format(
         generated_date=escape(data.get("generated_date", "N/A")),
         project_name=escape(data.get("project_name", "Unknown")),
-        context=escape(data.get("context", "No context provided.")),
+        overall_score=overall_score,
+        context=format_text(data.get("context", "No context provided.")),
         summary_stats=render_summary_stats(categories),
-        coverage_note=render_coverage_note(data.get("coverage_note", "")),
+        coverage_grid=render_coverage_grid(data.get("coverage", {})),
         tech_stack_items=render_tech_stack(data.get("tech_stack", [])),
-        current_architecture=escape(data.get("current_architecture", "Not determined.")),
+        current_architecture=format_text(
+            data.get("current_architecture", "Not determined.")
+        ),
         category_cards=render_category_cards(categories),
-        clean_code_section=render_clean_code(clean_code),
-        arch_recommendation=escape(target.get("recommendation", "None provided.")),
-        arch_rationale=escape(target.get("rationale", "None provided.")),
-        arch_migration=escape(target.get("migration_path", "None provided.")),
+        arch_recommendation=format_text(
+            target.get("recommendation", "None provided.")
+        ),
+        arch_rationale=format_text(target.get("rationale", "None provided.")),
+        arch_migration_steps=migration_html,
     )
 
     with open(args.output, "w", encoding="utf-8") as f:

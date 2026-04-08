@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe Audit Report - {project_name}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script>
+        const savedTheme = localStorage.getItem('theme');
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme) {{
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }} else if (!systemPrefersDark) {{
+            document.documentElement.setAttribute('data-theme', 'light');
+        }} else {{
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }}
+    </script>
+
+    <style>
+        :root {{
+            /* User Specific Palette */
+            --black: #0a0908ff;
+            --jet-black: #22333bff;
+            --almond-cream: #eae0d5ff;
+            --khaki-beige: #c6ac8fff;
+            --stone-brown: #5e503fff;
+
+            --molten-lava: #780000ff;
+            --brick-red: #c1121fff;
+            --papaya-whip: #fdf0d5ff;
+            --deep-space-blue: #003049ff;
+            --steel-blue: #669bbcff;
+
+            --space-indigo: #2b2d42ff;
+            --lavender-grey: #8d99aeff;
+            --platinum: #edf2f4ff;
+            --punch-red: #ef233cff;
+            --flag-red: #d90429ff;
+
+            /* Dark theme (default) */
+            --bg-main: var(--black);
+            --bg-sidebar: var(--jet-black);
+            --card-bg: rgba(94, 80, 63, 0.15);
+            --card-hover: rgba(94, 80, 63, 0.25);
+            --header-bg: linear-gradient(135deg, var(--jet-black) 0%, var(--black) 100%);
+
+            --text-heading: var(--almond-cream);
+            --text-body: rgba(234, 224, 213, 0.85);
+            --text-muted: var(--khaki-beige);
+
+            --accent: var(--khaki-beige);
+            --border: rgba(198, 172, 143, 0.2);
+            --border-light: rgba(198, 172, 143, 0.35);
+
+            --confirmed-bg: rgba(193, 18, 31, 0.2);
+            --confirmed-text: var(--brick-red);
+            --confirmed-border: rgba(193, 18, 31, 0.4);
+
+            --likely-bg: rgba(245, 158, 11, 0.15);
+            --likely-text: #f59e0b;
+            --likely-border: rgba(245, 158, 11, 0.3);
+
+            --uncertain-bg: rgba(94, 80, 63, 0.3);
+            --uncertain-text: var(--khaki-beige);
+            --uncertain-border: rgba(94, 80, 63, 0.5);
+
+            --success-bg: rgba(34, 197, 94, 0.1);
+            --success-text: #4ade80;
+
+            --code-bg: var(--jet-black);
+            --code-text: var(--almond-cream);
+
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        }}
+
+        [data-theme="light"] {{
+            --bg-main: var(--platinum);
+            --bg-sidebar: #e2e7e9;
+            --card-bg: #ffffff;
+            --card-hover: #f8fafc;
+            --header-bg: linear-gradient(135deg, #ffffff 0%, var(--platinum) 100%);
+
+            --text-heading: var(--space-indigo);
+            --text-body: rgba(43, 45, 66, 0.85);
+            --text-muted: var(--lavender-grey);
+
+            --accent: var(--punch-red);
+            --border: rgba(141, 153, 174, 0.3);
+            --border-light: rgba(141, 153, 174, 0.5);
+
+            --confirmed-bg: rgba(217, 4, 41, 0.15);
+            --confirmed-text: var(--flag-red);
+            --confirmed-border: rgba(217, 4, 41, 0.3);
+
+            --likely-bg: rgba(245, 158, 11, 0.15);
+            --likely-text: #d97706;
+            --likely-border: rgba(245, 158, 11, 0.3);
+
+            --uncertain-bg: rgba(141, 153, 174, 0.15);
+            --uncertain-text: var(--space-indigo);
+            --uncertain-border: rgba(141, 153, 174, 0.3);
+
+            --success-bg: rgba(34, 197, 94, 0.15);
+            --success-text: #16a34a;
+
+            --code-bg: #f1f5f9;
+            --code-text: var(--space-indigo);
+        }}
+
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        html {{ scroll-behavior: smooth; }}
+        body {{ font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-body); line-height: 1.5; display: flex; height: 100vh; overflow: hidden; transition: background-color 0.3s ease, color 0.3s ease; }}
+
+        .sidebar {{ width: 240px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; flex-shrink: 0; transition: background-color 0.3s ease, border-color 0.3s ease; }}
+        .sidebar-header {{ padding: 1.5rem 1.25rem 1rem; border-bottom: 1px solid var(--border); }}
+        .brand-title {{ font-size: 1.15rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.5rem; }}
+        .brand-subtitle {{ font-size: 0.8rem; color: var(--accent); font-weight: 500; }}
+        .meta-info {{ padding: 1.25rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; }}
+        .meta-item {{ margin-bottom: 0.5rem; }}
+        .meta-label {{ color: var(--text-muted); text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.15rem; display: block; }}
+        .meta-value {{ color: var(--text-heading); font-weight: 500; }}
+        .nav-menu {{ padding: 1rem 0.75rem; flex-grow: 1; overflow-y: auto; }}
+        .nav-link {{ display: flex; align-items: center; padding: 0.6rem 0.8rem; color: var(--text-muted); text-decoration: none; border-radius: 6px; font-weight: 500; transition: all 0.2s ease; margin-bottom: 0.15rem; font-size: 0.9rem; }}
+        .nav-link:hover {{ background-color: var(--card-bg); color: var(--text-heading); }}
+
+        .main-content {{ flex-grow: 1; overflow-y: auto; padding: 0; position: relative; }}
+        .content-wrapper {{ max-width: 1000px; margin: 0 auto; padding: 1.5rem 2.5rem 3rem; }}
+
+        header {{ background: var(--header-bg); padding: 1.25rem 1.75rem; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow-md); }}
+        .header-content {{ flex: 1; }}
+        h1 {{ font-size: 1.75rem; color: var(--text-heading); font-weight: 700; margin-bottom: 0.4rem; line-height: 1.2; }}
+        h2 {{ font-size: 1.35rem; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 0.6rem; color: var(--text-heading); }}
+        h3, h4 {{ color: var(--text-heading); font-weight: 600; line-height: 1.3; margin-bottom: 0.4rem; font-size: 1.1rem; }}
+
+        .score-container {{ display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100px; }}
+        .circular-chart {{ display: block; margin: 0 auto; width: 80px; height: 80px; }}
+        .circle-bg {{ fill: none; stroke: rgba(102, 155, 188, 0.15); stroke-width: 3.8; }}
+        .circle {{ fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--accent); transition: stroke-dasharray 1s ease-out; }}
+        .percentage {{ fill: var(--text-heading); font-family: 'Inter', sans-serif; font-size: 0.55rem; text-anchor: middle; font-weight: 700; }}
+        .score-label {{ font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600; margin-top: 0.35rem; text-align: center; }}
+
+        .card {{ background: var(--card-bg); border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-md); border: 1px solid var(--border); }}
+        .vertical-stack {{ display: flex; flex-direction: column; gap: 1rem; }}
+
+        .stats-banner {{ display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }}
+        .stat-box {{ flex: 1; min-width: 110px; background: var(--card-bg); border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; align-items: flex-start; box-shadow: var(--shadow-sm); border: 1px solid var(--border); position: relative; overflow: hidden; }}
+        .stat-box::before {{ content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }}
+        .stat-box.total::before {{ background-color: var(--accent); }}
+        .stat-box.confirmed::before {{ background-color: var(--confirmed-text); }}
+        .stat-box.likely::before {{ background-color: var(--likely-text); }}
+        .stat-box.uncertain::before {{ background-color: var(--uncertain-text); }}
+        .stat-num {{ font-size: 1.75rem; font-weight: 700; color: var(--text-heading); line-height: 1; margin-bottom: 0.25rem; }}
+        .stat-label {{ font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }}
+
+        .context-note {{ color: var(--text-body); font-size: 0.9rem; margin-top: 0.5rem; line-height: 1.4; }}
+
+        .coverage-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }}
+        .coverage-box {{ background: var(--card-bg); border-radius: 10px; padding: 1rem; border: 1px solid var(--border); }}
+        .coverage-title {{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem; }}
+        .coverage-title.audited {{ color: var(--success-text); }}
+        .coverage-title.skipped {{ color: var(--text-muted); }}
+        .path-list {{ display: flex; flex-wrap: wrap; gap: 0.4rem; }}
+        .path-tag {{ background: rgba(0,0,0,0.1); border: 1px solid var(--border); border-radius: 4px; padding: 0.15rem 0.4rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-muted); }}
+        [data-theme="light"] .path-tag {{ background: #f8fafc; }}
+
+        details {{ background: var(--card-bg); border-radius: 10px; margin-bottom: 0.75rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: hidden; }}
+        summary {{ padding: 1rem 1.25rem; font-size: 1rem; font-weight: 600; color: var(--text-heading); cursor: pointer; list-style: none; display: flex; align-items: center; transition: background 0.2s ease; }}
+        summary:hover {{ background: var(--card-hover); }}
+        summary::-webkit-details-marker {{ display: none; }}
+        summary::after {{ content: '+'; font-size: 1.25rem; color: var(--text-muted); transition: transform 0.3s ease; }}
+        details[open] summary::after {{ content: '\2212'; }}
+        details[open] summary {{ border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.05); }}
+        .category-title {{ flex: 1; }}
+        .item-count {{ font-size: 0.8rem; color: var(--text-muted); font-weight: normal; margin-right: 1.5rem; }}
+        .details-content {{ padding: 0; }}
+
+        .finding-list {{ list-style: none; }}
+        .finding-list li {{ padding: 1rem; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.95rem; }}
+        .finding-list li:last-child {{ border-bottom: none; }}
+        .finding-header {{ display: flex; justify-content: space-between; align-items: center; }}
+
+        .badge {{ display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }}
+        .badge::before {{ content: ''; width: 5px; height: 5px; border-radius: 50%; }}
+        .badge.confirmed {{ background: var(--confirmed-bg); color: var(--confirmed-text); border: 1px solid var(--confirmed-border); }}
+        .badge.confirmed::before {{ background-color: var(--confirmed-text); }}
+        .badge.likely {{ background: var(--likely-bg); color: var(--likely-text); border: 1px solid var(--likely-border); }}
+        .badge.likely::before {{ background-color: var(--likely-text); }}
+        .badge.uncertain {{ background: var(--uncertain-bg); color: var(--uncertain-text); border: 1px solid var(--uncertain-border); }}
+        .badge.uncertain::before {{ background-color: var(--uncertain-text); }}
+
+        .severity-score {{ font-size: 0.7rem; font-weight: 600; color: var(--text-muted); background: rgba(0,0,0,0.1); padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; }}
+
+        .tech-tag {{ display: inline-block; background: rgba(0,0,0,0.1); border: 1px solid var(--border); color: var(--text-body); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.8rem; margin: 0 0.4rem 0.4rem 0; }}
+        [data-theme="light"] .tech-tag {{ background: #f8fafc; }}
+
+        code {{ font-family: 'JetBrains Mono', ui-monospace, monospace; background: var(--code-bg); color: var(--code-text); padding: 0.15rem 0.35rem; border-radius: 4px; font-size: 0.85em; border: 1px solid var(--border-light); }}
+
+        .step-list {{ list-style: none !important; padding: 0; margin: 0.5rem 0 0 0; counter-reset: custom-counter; }}
+        .step-list li {{ list-style-type: none !important; counter-increment: custom-counter; position: relative; padding-left: 2.25rem; color: var(--text-body); font-size: 0.95rem; line-height: 1.6; margin-bottom: 0.75rem; }}
+        .step-list li:last-child {{ margin-bottom: 0; }}
+        .step-list li::before {{ content: counter(custom-counter); position: absolute; left: 0; top: 0.15rem; display: flex; align-items: center; justify-content: center; width: 1.4rem; height: 1.4rem; background: var(--card-bg); color: var(--accent); border: 1px solid var(--border); border-radius: 50%; font-size: 0.7rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }}
+
+        .limitations {{ background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 10px; padding: 1.5rem; margin-top: 2.5rem; }}
+        .limitations h3 {{ color: var(--likely-text); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem; font-size: 1rem; }}
+        .limitations ul {{ padding-left: 1.25rem; color: var(--text-muted); font-size: 0.85rem; }}
+        .limitations li {{ margin-bottom: 0.4rem; }}
+
+        .theme-btn {{ display: flex; align-items: center; gap: 0.6rem; background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 0.6rem 0.8rem; border-radius: 6px; width: 100%; cursor: pointer; font-family: inherit; font-size: 0.8rem; font-weight: 500; transition: all 0.2s ease; margin-top: auto; }}
+        .theme-btn:hover {{ background: var(--card-bg); color: var(--text-heading); }}
+        [data-theme="dark"] .moon-icon {{ display: none; }}
+        [data-theme="dark"] .sun-icon {{ display: block; }}
+        [data-theme="light"] .sun-icon {{ display: none; }}
+        [data-theme="light"] .moon-icon {{ display: block; }}
+
+        ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+        ::-webkit-scrollbar-track {{ background: var(--bg-main); }}
+        ::-webkit-scrollbar-thumb {{ background: var(--border); border-radius: 3px; }}
+        ::-webkit-scrollbar-thumb:hover {{ background: var(--border-light); }}
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                Vibe Audit
+            </div>
+            <div class="brand-subtitle">Codebase Insights</div>
+        </div>
+
+        <div class="meta-info">
+            <div class="meta-item">
+                <span class="meta-label">Target Project</span>
+                <span class="meta-value">{project_name}</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Generated Date</span>
+                <span class="meta-value">{generated_date}</span>
+            </div>
+        </div>
+
+        <nav class="nav-menu">
+            <span class="meta-label" style="margin: 0.75rem 0 0.4rem 0.8rem;">Navigation</span>
+            <a href="#overview" class="nav-link">High-Level Overview</a>
+            <a href="#findings" class="nav-link">Audit Findings</a>
+            <a href="#recommendation" class="nav-link">Target Architecture</a>
+        </nav>
+
+        <div style="padding: 1.25rem; border-top: 1px solid var(--border); margin-top: auto;">
+            <button id="theme-toggle" class="theme-btn">
+                <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <span class="theme-text">Switch Mode</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="content-wrapper">
+
+            <header>
+                <div class="header-content">
+                    <h1>Codebase Insight Report</h1>
+                    <div class="context-note">
+                        <strong>Context:</strong> {context}
+                    </div>
+                </div>
+                <div class="score-container">
+                   <svg viewBox="0 0 36 36" class="circular-chart">
+                     <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                     <path class="circle" stroke-dasharray="{overall_score}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                     <text x="18" y="20.35" class="percentage">{overall_score}</text>
+                   </svg>
+                   <div class="score-label">Cleanliness</div>
+                </div>
+            </header>
+
+            {coverage_grid}
+
+            <div class="stats-banner">
+                {summary_stats}
+            </div>
+
+            <section id="overview">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                    High-Level Overview
+                </h2>
+                <div class="vertical-stack">
+                    <div class="card">
+                        <h3>Tech Stack Detected</h3>
+                        <div style="margin-top: 0.5rem;">{tech_stack_items}</div>
+                    </div>
+                    <div class="card">
+                        <h3>Current Architecture</h3>
+                        <p style="margin-top: 0.25rem;">{current_architecture}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="findings">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    Audit Findings
+                </h2>
+                {category_cards}
+            </section>
+
+            <section id="recommendation">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    Target Architecture
+                </h2>
+                <div class="card">
+                    <div style="margin-bottom: 1rem;">
+                        <h3 style="margin-bottom: 0.25rem;">Recommendation</h3>
+                        <p style="font-size: 0.95rem;">{arch_recommendation}</p>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <h3 style="margin-bottom: 0.25rem; color: var(--text-muted); font-size: 0.9rem;">Rationale</h3>
+                        <p style="font-size: 0.95rem;">{arch_rationale}</p>
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom: 0.25rem; color: var(--text-muted); font-size: 0.9rem;">Migration Path</h3>
+                        <ol class="step-list">{arch_migration_steps}</ol>
+                    </div>
+                </div>
+            </section>
+
+            <div class="limitations">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    What This Audit Cannot Tell You
+                </h3>
+                <ul>
+                    <li>Runtime behavior, memory leaks, or performance bottlenecks under load.</li>
+                    <li>Whether flagged inconsistencies are deliberate (legacy constraints, intentional divergence).</li>
+                    <li>Actual test coverage execution percentages.</li>
+                    <li>Whether static dependency vulnerabilities are actually exploitable in this app's context.</li>
+                </ul>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const btn = document.getElementById('theme-toggle');
+        const text = document.querySelector('.theme-text');
+
+        const updateText = (theme) => {{
+            if (text) text.textContent = theme === 'dark' ? 'Light Mode' : 'Dark Mode';
+        }};
+
+        updateText(document.documentElement.getAttribute('data-theme'));
+
+        btn.addEventListener('click', () => {{
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateText(newTheme);
+        }});
+    </script>
+</body>
+</html>
