@@ -1,5 +1,7 @@
 # vibe-audit Skill
 
+[![skills.sh](https://skills.sh/b/owner/repo)](https://skills.sh/KangweiLIAO/vibe-audit)
+
 A static codebase audit skill for Claude that generates a styled, interactive HTML report. Analyzes architecture, code quality, security hygiene, and AI-generated technical debt using Clean Code principles and a "Vibe-Coding" pitfall detector.
 
 ![Report Preview](/preview.png)
